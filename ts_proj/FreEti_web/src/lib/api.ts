@@ -220,3 +220,150 @@ export function getTasksForDaySplit(tasks: TaskAnswer[], day: Date) {
     
     return { normal, unassignedForDay };
 }
+
+
+
+
+
+// Поиск по имени
+export async function searchUsersByUsername(username: string): Promise<UserAnswer[]> {
+    const response = await api.get<UserAnswer[]>('/api/users/username', {
+        params: { username },
+    });
+    return response.data;
+}
+
+// Поиск по логину
+export async function searchUsersByLogin(login: string): Promise<UserAnswer[]> {
+    const response = await api.get<UserAnswer[]>('/api/users/login', {
+        params: { login },
+    });
+    return response.data;
+}
+
+// Получить пользователей по ID
+export async function getUsersByIds(ids: string): Promise<UserAnswer[]> {
+    const response = await api.get<UserAnswer[]>('/api/users/byIds', {
+        params: { ids },
+    });
+    return response.data;
+}
+
+// Добавление в контакты
+export async function addContact(contactData: any): Promise<any> {
+    const response = await api.put('/api/users/add_contact', contactData);
+    return response.data;
+}
+
+// Удаление из контактов
+export async function removeContact(contactData: any): Promise<boolean> {
+    const response = await api.delete('/api/users/delete_contact', {
+        params: contactData, 
+    });
+    return response.data;
+}
+
+// Получить список контактов
+export async function fetchContacts(): Promise<any[]> {
+    const response = await api.get<any[]>('/api/users/contacts');
+    return response.data;
+}
+
+// Получить чужие задачи (для профиля друга)
+export async function getOtherTasks(yearMonth: string, login: string): Promise<any[]> {
+    const response = await api.get<any[]>('/api/tasks/othertasks', {
+        params: { yearMonth, login },
+    });
+    return response.data;
+}
+
+// Получить список групп
+export async function fetchGroups(): Promise<any[]> {
+    const response = await api.get<any[]>('/api/groups/groups');
+    return response.data;
+}
+
+// Создать группу
+export async function createGroup(groupData: { title: string; body: string }): Promise<any> {
+    const response = await api.post('/api/groups/groups', groupData);
+    return response.data;
+}
+
+// Получить количество участников в группе
+export async function getGroupMembersCount(groupId: string): Promise<number> {
+    const response = await api.get<number>('/api/groups/members_count', {
+        params: { group_id: groupId },
+    });
+    return response.data;
+}
+
+// Получить задачи группы на месяц
+export async function getGroupTasks(yearMonth: string, groupId: string): Promise<any[]> {
+    const response = await api.get<any[]>('/api/groups/group_tasks', {
+        params: { yearMonth, id: groupId },
+    });
+    return response.data;
+}
+
+// Получить связи участников группы (кто состоит и с какой ролью)
+export async function getGroupMembers(groupId: string): Promise<any[]> {
+    const response = await api.get<any[]>('/api/groups/group_members', {
+        params: { group_id: groupId },
+    });
+    return response.data;
+}
+
+// Покинуть группу
+export async function leaveGroup(groupId: string): Promise<boolean> {
+    const response = await api.put(`/api/groups/leave/${groupId}`);
+    return response.data;
+}
+
+// Удалить группу (только для владельца)
+export async function deleteGroup(groupId: string): Promise<boolean> {
+    const response = await api.delete('/api/groups/delete_group', {
+        params: { group_id: groupId },
+    });
+    return response.data;
+}
+
+// Удалить участника из группы
+export async function removeMemberFromGroup(groupId: string, userId: number): Promise<boolean> {
+    const response = await api.put('/api/groups/member_delete', null, {
+        params: { user_id: userId, group_id: groupId },
+    });
+    return response.data;
+}
+
+// Добавить участника в группу
+export async function addMemberToGroup(groupId: string, userId: number): Promise<any> {
+    // Предполагаем, что эндпоинт называется member_add, по аналогии с member_delete
+    const response = await api.put('/api/groups/member_add', null, {
+        params: { user_id: userId, group_id: groupId },
+    });
+    return response.data;
+}
+
+// Изменить роль участника (сделать админом/обычным)
+export async function switchMemberRole(groupId: string, userId: number): Promise<any> {
+    const response = await api.put('/api/groups/member_switch', null, {
+        params: { user_id: userId, group_id: groupId },
+    });
+    return response.data;
+}
+
+// Создать событие для группы
+export async function createGroupTask(groupId: string, taskData: any): Promise<any> {
+    const response = await api.post('/api/groups/new_event', taskData, {
+        params: { group_id: groupId } // Бэкенд ждет именно group_id и адрес new_event
+    });
+    return response.data;
+}
+
+// Удалить событие группы
+export async function deleteGroupTask(taskId: number, groupId: string): Promise<boolean> {
+    const response = await api.delete('/api/groups/delete_event', {
+        params: { event_id: taskId } // Бэкенд ждет именно event_id и адрес delete_event
+    });
+    return response.data;
+}

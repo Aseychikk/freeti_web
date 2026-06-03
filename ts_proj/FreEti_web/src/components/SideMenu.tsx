@@ -42,6 +42,7 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
     }, [isOpen, onClose]);
 
     const menuItems = [
+        { icon: '📅', label: 'Главная', path: '/' },
         { icon: '🔍', label: 'Поиск', path: '/search' },
         { icon: '👥', label: 'Контакты', path: '/contacts' },
         { icon: '👥', label: 'Группы', path: '/groups' },
