@@ -81,16 +81,23 @@ export function TaskPage() {
         const tasksWithTime: LayoutTask[] = timed.map(t => {
             const d = new Date(t.start);
             const startMins = d.getHours() * 60 + d.getMinutes();
-            let durationMins = 60;
+            
+            // Реальная длительность
+            let actualDurationMins = 30;
             if (t.time_end > t.start) {
-                durationMins = (t.time_end - t.start) / 60000;
+                actualDurationMins = (t.time_end - t.start) / 60000;
             }
-            if (startMins + durationMins > 24 * 60) durationMins = 24 * 60 - startMins;
+            
+            // ВИЗУАЛЬНАЯ ДЛИНА: округляем до ближайших 30 минут в большую сторону!
+            let visualDurationMins = Math.ceil(actualDurationMins / 30) * 30;
+
+            if (startMins + visualDurationMins > 24 * 60) visualDurationMins = 24 * 60 - startMins;
 
             if (startMins < minTaskMins) minTaskMins = startMins;
-            if (startMins + durationMins > maxTaskMins) maxTaskMins = startMins + durationMins;
+            if (startMins + visualDurationMins > maxTaskMins) maxTaskMins = startMins + visualDurationMins;
 
-            return { ...t, startMins, endMins: startMins + durationMins, column: 0, maxColumns: 1 };
+            // Для алгоритма пересечений и отрисовки используем визуальный конец
+            return { ...t, startMins, endMins: startMins + visualDurationMins, column: 0, maxColumns: 1 };
         });
 
         let columns: LayoutTask[][] = [];
@@ -109,24 +116,36 @@ export function TaskPage() {
             columns = [];
         };
 
+        const VISUAL_GAP = 90;
+
         tasksWithTime.forEach(task => {
+
             if (task.startMins >= lastEventEnding) {
                 packEvents();
-                lastEventEnding = task.endMins;
+                lastEventEnding = task.endMins + VISUAL_GAP;
             } else {
-                lastEventEnding = Math.max(lastEventEnding, task.endMins);
+                lastEventEnding = Math.max(lastEventEnding, task.endMins + VISUAL_GAP);
             }
 
             let placed = false;
             for (let i = 0; i < columns.length; i++) {
                 const col = columns[i];
-                if (col[col.length - 1].endMins <= task.startMins) {
+                
+                const hasOverlap = col.some(existingTask => {
+                    return task.startMins < (existingTask.endMins + VISUAL_GAP) && 
+                           task.endMins > existingTask.startMins;
+                });
+
+                if (!hasOverlap) {
                     col.push(task);
                     placed = true;
                     break;
                 }
             }
-            if (!placed) columns.push([task]);
+            
+            if (!placed) {
+                columns.push([task]);
+            }
         });
         packEvents();
 
@@ -338,26 +357,28 @@ export function TaskPage() {
                         {layoutTasks.length > 0 && (
                             <div style={{ display: 'flex', position: 'relative', marginTop: '16px', minWidth: 0 }}>
                                 
-                                {/* КОЛОНКА ЧАСОВ: +12px для компенсации скроллбара */}
                                 <div style={{ width: '50px', flexShrink: 0, position: 'relative', height: `${(timelineEndMins - timelineStartMins) * pixelsPerMinute + 12}px` }}>
                                     {hoursGrid.map(h => {
                                         const isHidden = h === hoursGrid[hoursGrid.length - 1]; 
                                         return !isHidden && (
-                                            <div key={h} style={{ position: 'absolute', top: `${(h * 60 - timelineStartMins) * pixelsPerMinute}px`, left: 0, width: '100%', textAlign: 'right', paddingRight: '8px', color: '#9ca3af', fontSize: '12px', transform: 'translateY(-6px)' }}>
-                                                {String(h).padStart(2, '0')}:00
+                                            <div key={h}>
+                                                <div style={{ position: 'absolute', top: `${(h * 60 - timelineStartMins) * pixelsPerMinute}px`, left: 0, width: '100%', textAlign: 'right', paddingRight: '8px', color: '#9ca3af', fontSize: '12px', transform: 'translateY(-6px)' }}>
+                                                    {String(h).padStart(2, '0')}:00
+                                                </div>
+                                                <div style={{ position: 'absolute', top: `${(h * 60 + 30 - timelineStartMins) * pixelsPerMinute}px`, left: 0, width: '100%', textAlign: 'right', paddingRight: '8px', color: '#d1d5db', fontSize: '10px', transform: 'translateY(-5px)', opacity: 0.8 }}>
+                                                    30
+                                                </div>
                                             </div>
                                         );
                                     })}
                                 </div>
 
-                                {/* ОБЛАСТЬ ЗАДАЧ: overflowY: 'hidden' убирает микро-скролл */}
-                                <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', borderLeft: '1px solid #e5e7eb', minWidth: 0 }}>
-                                    <div style={{
-                                        position: 'relative',
-                                        height: `${(timelineEndMins - timelineStartMins) * pixelsPerMinute + 12}px`,
-                                        minWidth: '100%',
-                                        width: `${globalMaxColumns * 220}px` 
-                                    }}>
+                               <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', borderLeft: '1px solid #e5e7eb', minWidth: 0 }}>
+                                <div style={{
+                                    position: 'relative',
+                                    height: `${(timelineEndMins - timelineStartMins) * pixelsPerMinute + 12}px`,
+                                    minWidth: `max(100%, ${globalMaxColumns * 285}px)` 
+                                }}>
                                         
                                         {hoursGrid.map(h => (
                                             <div key={`line-${h}`} style={{ position: 'absolute', top: `${(h * 60 - timelineStartMins) * pixelsPerMinute}px`, left: 0, right: 0, height: '1px', background: '#e5e7eb', zIndex: 0 }} />
@@ -366,12 +387,11 @@ export function TaskPage() {
                                             <div key={`half-${h}`} style={{ position: 'absolute', top: `${(h * 60 + 30 - timelineStartMins) * pixelsPerMinute}px`, left: 0, right: 0, height: '1px', background: '#f9fafb', zIndex: 0 }} />
                                         ))}
 
-                                        {layoutTasks.map((task) => {
+                                       {layoutTasks.map((task) => {
                                             const topPx = (task.startMins - timelineStartMins) * pixelsPerMinute;
                                             const heightPx = (task.endMins - task.startMins) * pixelsPerMinute;
-                                            
-                                            const widthPct = 70 / task.maxColumns;
-                                            const leftPct = widthPct * task.column;
+                                            const COLUMN_WIDTH = 285; 
+                                            const leftPx = task.column * COLUMN_WIDTH;
                                             
                                             const bgColor = task.colour && task.colour !== 'FFFFFF' ? `#${task.colour}` : '#3b82f6';
 
@@ -382,9 +402,9 @@ export function TaskPage() {
                                                     style={{
                                                         position: 'absolute',
                                                         top: `${topPx}px`,
-                                                        
-                                                        left: `calc(${leftPct}% + 5px)`,     // Сдвигаем на 1px от левого края колонки
-                                                        width: `calc(${widthPct}% - 25px)`,   // Строго занимаем колонку минус 2px на зазоры
+                                                    
+                                                        left: `${leftPx + 2}px`,
+                                                        width: '265px',
                                                         
                                                         height: `${Math.max(heightPx, 44)}px`,
                                                         backgroundColor: bgColor,
@@ -404,7 +424,7 @@ export function TaskPage() {
                                                     onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.zIndex = '20'; }}
                                                     onMouseLeave={(e) => { e.currentTarget.style.opacity = task.status === 'DONE' ? '0.5' : '0.95'; e.currentTarget.style.zIndex = '12'; }}
                                                 >
-                                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontWeight: 600, fontSize: '12px', textDecoration: task.status === 'DONE' ? 'line-through' : 'none', marginBottom: '2px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontWeight: 600, fontSize: '15px', textDecoration: task.status === 'DONE' ? 'line-through' : 'none', marginBottom: '2px' }}>
                                                         <span onClick={(e) => { e.stopPropagation(); toggleTaskStatus(task); }} style={{ cursor: 'pointer', flexShrink: 0, marginTop: '1px' }}>
                                                             {task.status === 'DONE' ? '☑' : '☐'}
                                                         </span>
@@ -416,7 +436,7 @@ export function TaskPage() {
                                                             {task.title}
                                                         </span>
                                                     </div>
-                                                    <div style={{ fontSize: '12px', marginTop: 'auto', opacity: 0.9 }}>
+                                                    <div style={{ fontSize: '11px', marginTop: 'auto', opacity: 0.9 }}>
                                                         {formatTime(task.start)} {task.time_end > task.start && `- ${formatTime(task.time_end)}`}
                                                     </div>
                                                 </div>

@@ -6,7 +6,6 @@ interface Props {
     isNew: boolean;
     onChange: (task: TaskRequest) => void;
     onSave: (task: TaskRequest) => void;
-    onDelete?: (task: TaskRequest) => void; // <-- ДОБАВЛЕНО: функция удаления
     onCancel: () => void;
 }
 
@@ -21,7 +20,7 @@ function formatDateTime(timestamp: number): string {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }: Props) {
+export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
     const [title, setTitle] = useState(task.title);
     const [body, setBody] = useState(task.body);
     const [importance, setImportance] = useState(task.importance);
@@ -48,48 +47,66 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
         onChange({ ...task, ...updates, updated_at: Date.now() });
     }
 
-    function handleStartChange(value: string) {
-        setStartStr(value);
-        const parsed = parseDateTime(value);
-        if (parsed) update({ start: parsed });
-    }
-
-    function handleEndChange(value: string) {
-        setEndStr(value);
-        const parsed = parseDateTime(value);
-        if (parsed) update({ time_end: parsed });
-    }
-
     function parseDateTime(value: string): number | null {
         const d = new Date(value);
         if (!isNaN(d.getTime())) return d.getTime();
         return null;
     }
 
+    // Обработка начала с защитой (+30 мин, если конец оказался раньше начала)
+    function handleStartChange(value: string) {
+        setStartStr(value);
+        const parsed = parseDateTime(value);
+        if (parsed) {
+            let newEnd = task.time_end;
+            if (!noEndTime && newEnd <= parsed) {
+                newEnd = parsed + 30 * 60000; // Сдвигаем на 30 минут
+                setEndStr(formatDateTime(newEnd));
+            }
+            update({ start: parsed, time_end: newEnd });
+        }
+    }
+
+    // Обработка конца с защитой (нельзя поставить раньше начала)
+    function handleEndChange(value: string) {
+        setEndStr(value);
+        const parsed = parseDateTime(value);
+        if (parsed) {
+            let newEnd = parsed;
+            if (newEnd <= task.start) {
+                newEnd = task.start + 30 * 60000; // Сдвигаем на 30 минут от начала
+                setEndStr(formatDateTime(newEnd));
+            }
+            update({ time_end: newEnd });
+        }
+    }
+
     function handleSave() {
         if (!title.trim()) return;
-        update({
-            title: title.trim(),
-            body: body.trim(),
-            importance,
-            colour,
-            privacy,
-            start: noTime ? 0 : task.start,
-            time_end: noTime || noEndTime ? 0 : task.time_end,
-        });
-        onSave({
+
+        let finalStart = noTime ? 0 : task.start;
+        let finalEnd = noTime || noEndTime ? 0 : task.time_end;
+
+        // Финальная проверка перед сохранением: если конец <= начала, сдвигаем на 30 мин
+        if (!noTime && !noEndTime && finalEnd <= finalStart) {
+            finalEnd = finalStart + 30 * 60000;
+        }
+
+        const finalTask = {
             ...task,
             title: title.trim(),
             body: body.trim(),
             importance,
-            colour,
+            colour: colour.replace('#', ''),
             privacy,
-            start: noTime ? 0 : task.start,
-            time_end: noTime || noEndTime ? 0 : task.time_end,
-        });
+            start: finalStart,
+            time_end: finalEnd,
+        };
+
+        update(finalTask);
+        onSave(finalTask);
     }
 
-    // Подготавливаем цвет для input type="color" (он требует формат #RRGGBB)
     const hexColor = colour.startsWith('#') ? colour : `#${colour}`;
 
     return (
@@ -106,7 +123,7 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                 {isNew ? 'Новая задача' : 'Редактирование'}
             </h3>
 
-            {/* Название */}
+            {/* Название (до 30 символов) */}
             <div style={{ marginBottom: '12px' }}>
                 <label style={labelStyle}>Название *</label>
                 <input
@@ -115,16 +132,15 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                         setTitle(e.target.value);
                         update({ title: e.target.value });
                     }}
-                    maxLength={20}
+                    maxLength={30}
                     style={inputStyle}
                     placeholder="Введите название"
                 />
-                {title.length > 20 && (
-                    <span style={{ color: '#ef4444', fontSize: '12px' }}>Максимум 20 символов</span>
+                {title.length >= 30 && (
+                    <span style={{ color: '#ef4444', fontSize: '12px' }}>Максимум 30 символов</span>
                 )}
             </div>
 
-            {/* Описание */}
             <div style={{ marginBottom: '12px' }}>
                 <label style={labelStyle}>Описание</label>
                 <textarea
@@ -138,7 +154,6 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                 />
             </div>
 
-            {/* Важность */}
             <div style={{ marginBottom: '12px' }}>
                 <label style={labelStyle}>Важность</label>
                 <select
@@ -155,7 +170,6 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                 </select>
             </div>
 
-            {/* Приватность */}
             <div style={{ marginBottom: '12px' }}>
                 <label style={labelStyle}>Видимость</label>
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -183,7 +197,6 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                 </div>
             </div>
 
-            {/* Временные рамки */}
             <div style={{ marginBottom: '12px' }}>
                 <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
@@ -236,38 +249,28 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                 </>
             )}
 
-            {/* ЦВЕТОВОЙ КРУГ И ПРЕСЕТЫ */}
             <div style={{ marginBottom: '20px' }}>
                 <label style={labelStyle}>Цвет задачи</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    {/* Палитра браузера */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input
                             type="color"
                             value={hexColor}
                             onChange={(e) => {
-                                // Убираем решетку, так как бэкенд ожидает цвет без неё
                                 const newColor = e.target.value.replace('#', '');
                                 setColour(newColor);
                                 update({ colour: newColor });
                             }}
                             title="Выбрать любой цвет"
                             style={{
-                                width: '36px',
-                                height: '36px',
-                                padding: '0',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                background: 'transparent'
+                                width: '36px', height: '36px', padding: '0', border: 'none',
+                                borderRadius: '8px', cursor: 'pointer', background: 'transparent'
                             }}
                         />
                     </div>
                     
-                    {/* Разделитель */}
                     <div style={{ width: '1px', height: '24px', background: '#d1d5db' }} />
 
-                    {/* Стандартные пресеты */}
                     {COLOR_PRESETS.map((c) => (
                         <button
                             key={c.value}
@@ -277,38 +280,18 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
                             }}
                             title={c.label}
                             style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                background: `#${c.value}`,
-                                border: colour === c.value ? '3px solid #3b82f6' : '1px solid #d1d5db',
-                                cursor: 'pointer',
+                                width: '28px', height: '28px', borderRadius: '50%', background: `#${c.value}`,
+                                border: colour === c.value ? '3px solid #3b82f6' : '1px solid #d1d5db', cursor: 'pointer',
                             }}
                         />
                     ))}
                 </div>
             </div>
 
-            {/* КНОПКИ */}
             <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={handleSave} style={saveBtnStyle}>
                     {isNew ? 'Создать' : 'Сохранить'}
                 </button>
-                
-                {/* Кнопка удаления появляется только для существующих задач */}
-                {!isNew && onDelete && (
-                    <button 
-                        onClick={() => {
-                            if (window.confirm('Вы уверены, что хотите удалить эту задачу?')) {
-                                onDelete(task);
-                            }
-                        }} 
-                        style={deleteBtnStyle}
-                    >
-                        Удалить
-                    </button>
-                )}
-
                 <button onClick={onCancel} style={cancelBtnStyle}>
                     Отмена
                 </button>
@@ -320,5 +303,4 @@ export function TaskEditor({ task, isNew, onChange, onSave, onDelete, onCancel }
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' };
 const saveBtnStyle: React.CSSProperties = { flex: 1, padding: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 };
-const deleteBtnStyle: React.CSSProperties = { flex: 1, padding: '10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 };
 const cancelBtnStyle: React.CSSProperties = { flex: 1, padding: '10px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' };
