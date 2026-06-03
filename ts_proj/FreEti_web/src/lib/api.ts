@@ -361,7 +361,7 @@ export async function createGroupTask(groupId: string, taskData: any): Promise<a
 }
 
 // Удалить событие группы
-export async function deleteGroupTask(taskId: number, groupId: string): Promise<boolean> {
+export async function deleteGroupTask(taskId: number): Promise<boolean> {
     const response = await api.delete('/api/groups/delete_event', {
         params: { event_id: taskId } // Бэкенд ждет именно event_id и адрес delete_event
     });

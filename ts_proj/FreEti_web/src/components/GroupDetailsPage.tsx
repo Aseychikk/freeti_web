@@ -144,7 +144,7 @@ export function GroupDetailsPage() {
     const handleDeleteTask = async (taskId: number) => {
         if (!id || !window.confirm('Точно удалить это событие?')) return;
         try {
-            await deleteGroupTask(taskId, String(id));
+            await deleteGroupTask(taskId);
             loadTasks(); 
         } catch (error) {
             alert('Не удалось удалить событие.');
