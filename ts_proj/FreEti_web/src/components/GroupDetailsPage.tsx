@@ -36,6 +36,8 @@ export function GroupDetailsPage() {
     const [startTime, setStartTime] = useState('12:00');
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('13:00');
+    const [timeTask, setTimeTask] = useState('00:30');
+    const [importance, setImportance] = useState(1);
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
     useEffect(() => {
@@ -100,6 +102,8 @@ export function GroupDetailsPage() {
         setEndDate(dateStr);
         setNewTaskTitle('');
         setNewTaskBody('');
+        setTimeTask('00:30');
+        setImportance(1);
         setShowAddModal(true);
     };
 
@@ -109,18 +113,24 @@ export function GroupDetailsPage() {
             return;
         }
 
-        const startTimestamp = new Date(`${startDate}T${startTime}:00`).getTime();
-        const endTimestamp = new Date(`${endDate}T${endTime}:00`).getTime();
+        // Преобразуем длительность "HH:mm" в миллисекунды (минимум 30 мин = 1 800 000 мс)
+        const [hours, minutes] = timeTask.split(':').map(Number);
+        const durationMs = Math.max(
+            ((hours || 0) * 60 + (minutes || 0)) * 60 * 1000,
+            30 * 60 * 1000  // защита: не меньше 30 минут
+        );
 
         try {
-            // Отправляем ID группы первым параметром, как мы обновили в api.ts
             await createGroupTask(id, {
+                day_start: startDate,       // строка "YYYY-MM-DD"
+                day_end: endDate,           // строка "YYYY-MM-DD"
+                time_start: startTime,      // строка "HH:mm"
+                time_end: endTime,          // строка "HH:mm"
+                time_pick: durationMs,      // длительность в миллисекундах
+                importance: importance,     // 1, 2 или 3
                 title: newTaskTitle.trim(),
                 body: newTaskBody.trim(),
-                start: startTimestamp,
-                time_end: endTimestamp,
-                colour: selectedColor,
-                privacy: 'GROUP'
+                colour: selectedColor,      // без '#', например "3b82f6"
             });
 
             setShowAddModal(false);
@@ -251,6 +261,31 @@ export function GroupDetailsPage() {
                                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px', boxSizing: 'border-box', marginBottom: '4px' }} />
                                 <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px', boxSizing: 'border-box' }} />
                             </div>
+                        </div>
+
+                        {/* Длительность задачи */}
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Длительность (мин. 30 мин)</label>
+                            <input 
+                                type="time" 
+                                value={timeTask} 
+                                onChange={e => setTimeTask(e.target.value)} 
+                                style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px', boxSizing: 'border-box' }} 
+                            />
+                        </div>
+
+                        {/* Важность */}
+                        <div style={{ marginBottom: '24px' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Важность</label>
+                            <select 
+                                value={importance} 
+                                onChange={e => setImportance(Number(e.target.value))}
+                                style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '8px', boxSizing: 'border-box' }}
+                            >
+                                <option value={1}>Простая</option>
+                                <option value={2}>Важная</option>
+                                <option value={3}>Крайне важная</option>
+                            </select>
                         </div>
 
                         {/* Выбор цвета */}
