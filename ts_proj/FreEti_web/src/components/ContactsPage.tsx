@@ -152,9 +152,14 @@ export function ContactsPage() {
                                         <div style={{ 
                                             width: '40px', height: '40px', borderRadius: '50%', background: '#10b981', flexShrink: 0,
                                             color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                            fontWeight: 'bold', fontSize: '16px' 
+                                            fontWeight: 'bold', fontSize: '16px',
+                                            transform: 'rotate(90deg)'
                                         }}>
-                                            {(c.avatar || displayName[0] || '?').toUpperCase()}
+                                            {/* Безопасный для TS код */}
+                                            {c.avatar 
+                                                ? Array.from(String(c.avatar)).slice(0, 4).join('') 
+                                                : String(Array.from(String(displayName || '?'))[0] || '?').toUpperCase()
+                                            }
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 600, fontSize: '15px', color: '#1f2937' }}>{displayName}</div>

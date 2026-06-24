@@ -5,7 +5,7 @@ interface Props {
     task: TaskRequest;
     isNew: boolean;
     onChange: (task: TaskRequest) => void;
-    onSave: (task: TaskRequest) => void;
+    onSave: (task: TaskRequest, createStub?: boolean) => void; 
     onCancel: () => void;
 }
 
@@ -30,6 +30,7 @@ export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
     const [endStr, setEndStr] = useState(formatDateTime(task.time_end));
     const [noEndTime, setNoEndTime] = useState(task.time_end === 0 || task.time_end === task.start);
     const [noTime, setNoTime] = useState(task.start === 0);
+    const [createPublicStub, setCreatePublicStub] = useState(false);
 
     useEffect(() => {
         setTitle(task.title);
@@ -53,31 +54,19 @@ export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
         return null;
     }
 
-    // Обработка начала с защитой (+30 мин, если конец оказался раньше начала)
     function handleStartChange(value: string) {
         setStartStr(value);
         const parsed = parseDateTime(value);
         if (parsed) {
-            let newEnd = task.time_end;
-            if (!noEndTime && newEnd <= parsed) {
-                newEnd = parsed + 30 * 60000; // Сдвигаем на 30 минут
-                setEndStr(formatDateTime(newEnd));
-            }
-            update({ start: parsed, time_end: newEnd });
+            update({ start: parsed });
         }
     }
 
-    // Обработка конца с защитой (нельзя поставить раньше начала)
     function handleEndChange(value: string) {
         setEndStr(value);
         const parsed = parseDateTime(value);
         if (parsed) {
-            let newEnd = parsed;
-            if (newEnd <= task.start) {
-                newEnd = task.start + 30 * 60000; // Сдвигаем на 30 минут от начала
-                setEndStr(formatDateTime(newEnd));
-            }
-            update({ time_end: newEnd });
+            update({ time_end: parsed });
         }
     }
 
@@ -87,7 +76,7 @@ export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
         let finalStart = noTime ? 0 : task.start;
         let finalEnd = noTime || noEndTime ? 0 : task.time_end;
 
-        // Финальная проверка перед сохранением: если конец <= начала, сдвигаем на 30 мин
+        // Финальная проверка только при сохранении
         if (!noTime && !noEndTime && finalEnd <= finalStart) {
             finalEnd = finalStart + 30 * 60000;
         }
@@ -104,11 +93,10 @@ export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
         };
 
         update(finalTask);
-        onSave(finalTask);
+        onSave(finalTask, createPublicStub); // Передаем флаг сюда
     }
-
     const hexColor = colour.startsWith('#') ? colour : `#${colour}`;
-
+    
     return (
         <div style={{
             background: 'white',
@@ -172,6 +160,7 @@ export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
 
             <div style={{ marginBottom: '12px' }}>
                 <label style={labelStyle}>Видимость</label>
+                {/* Контейнер с кнопками в ряд */}
                 <div style={{ display: 'flex', gap: '6px' }}>
                     {PRIVACY_OPTIONS.map((opt) => (
                         <button
@@ -195,6 +184,19 @@ export function TaskEditor({ task, isNew, onChange, onSave, onCancel }: Props) {
                         </button>
                     ))}
                 </div>
+
+                {isNew && privacy !== 'PUBLIC' && (
+                    <div style={{ marginTop: '12px', padding: '8px', background: '#f9fafb', borderRadius: '8px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151', cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={createPublicStub}
+                                onChange={(e) => setCreatePublicStub(e.target.checked)}
+                            />
+                            Создать заглушку в "публичных" на это время
+                        </label>
+                    </div>
+                )}
             </div>
 
             <div style={{ marginBottom: '12px' }}>

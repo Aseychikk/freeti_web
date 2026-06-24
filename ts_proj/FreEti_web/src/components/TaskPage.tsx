@@ -51,6 +51,7 @@ export function TaskPage() {
     const [editingTask, setEditingTask] = useState<TaskRequest | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const navigate = useNavigate();
+    const [currentPrivacyView, setCurrentPrivacyView] = useState<'PRIVATE' | 'FRIENDS' | 'PUBLIC'>('PRIVATE');
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -67,13 +68,17 @@ export function TaskPage() {
         [tasks, selectedDay]
     );
 
-    const allDayTasks = useMemo(() => normalTasks.filter(t => t.start === 0), [normalTasks]);
+    const visibleTasks = useMemo(() => {
+        return normalTasks.filter(t => t.privacy === currentPrivacyView);
+    }, [normalTasks, currentPrivacyView]);
+
+    // ИСПОЛЬЗУЙТЕ visibleTasks ВМЕСТО normalTasks ДЛЯ ОТРИСОВКИ
+    const allDayTasks = useMemo(() => visibleTasks.filter(t => t.start === 0), [visibleTasks]);
     
     const { layoutTasks, timelineStartMins, timelineEndMins, pixelsPerMinute } = useMemo(() => {
-        const timed = normalTasks.filter(t => t.start > 0).sort((a, b) => a.start - b.start);
-        if (timed.length === 0) {
-            return { layoutTasks: [], timelineStartMins: 8 * 60, timelineEndMins: 20 * 60, pixelsPerMinute: 1.5 };
-        }
+        const timed = visibleTasks.filter(t => t.start > 0).sort((a, b) => a.start - b.start);
+   
+
 
         let minTaskMins = 24 * 60;
         let maxTaskMins = 0;
@@ -165,7 +170,7 @@ export function TaskPage() {
             timelineEndMins: endMinsBoundary,
             pixelsPerMinute: ppm
         };
-    }, [normalTasks]);
+    }, [visibleTasks]);
 
     const globalMaxColumns = useMemo(() => {
         if (layoutTasks.length === 0) return 1;
@@ -220,9 +225,30 @@ export function TaskPage() {
         setIsCreating(true);
     }
 
-    function handleSaveTask(task: TaskRequest) {
+    function handleSaveTask(task: TaskRequest, createStub: boolean = false) {
+        // Отправляем основную задачу первой
         updateTaskMutation.mutate(task, {
-            onSuccess: () => { setEditingTask(null); setIsCreating(false); },
+            onSuccess: () => { 
+                // Как только сервер ответил "ОК", закрываем окно
+                setEditingTask(null); 
+                setIsCreating(false); 
+
+                // И только теперь, без конфликтов, отправляем заглушку отдельным запросом
+                if (createStub) {
+                    const emptyTask = createEmptyTask(selectedDay); 
+                    const stubTask = {
+                        ...emptyTask,
+                        start: task.start,
+                        time_end: task.time_end,
+                        title: 'Занят',
+                        body: 'Запланированное время',
+                        privacy: 'PUBLIC' as const,
+                        colour: '9ca3af',
+                        importance: task.importance,
+                    };
+                    updateTaskMutation.mutate(stubTask);
+                }
+            },
         });
     }
 
@@ -267,8 +293,29 @@ export function TaskPage() {
                         {isSameDay(selectedDay, today) ? 'Сегодня' : formattedDate}
                     </button>
                     <button onClick={() => changeDay(1)} style={navBtnStyle}>День вперёд →</button>
+                    
                 </div>
-
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+                    {(['PRIVATE', 'FRIENDS', 'PUBLIC'] as const).map(mode => (
+                        <button
+                            key={mode}
+                            onClick={() => setCurrentPrivacyView(mode)}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: '20px',
+                                border: currentPrivacyView === mode ? '2px solid #3b82f6' : '1px solid #d1d5db',
+                                background: currentPrivacyView === mode ? '#dbeafe' : 'white',
+                                color: currentPrivacyView === mode ? '#1d4ed8' : '#4b5563',
+                                fontSize: '14px',
+                                fontWeight: currentPrivacyView === mode ? 600 : 400,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {mode === 'PRIVATE' ? 'Приватные' : mode === 'FRIENDS' ? 'Для друзей' : 'Публичные'}
+                        </button>
+                    ))}
+                </div>
                 {showCalendar && (
                     <div style={{ background: 'white', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

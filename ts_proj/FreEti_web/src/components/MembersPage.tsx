@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getGroupMembers, getUsersByIds, leaveGroup, deleteGroup, removeMemberFromGroup, switchMemberRole } from '../lib/api';
 import { useUser } from '../hooks/useUser';
+import { UserAvatar } from '../components/UserAvatar';
 
 export function MembersPage() {
     const { id: groupId } = useParams<{ id: string }>();
@@ -146,10 +147,16 @@ export function MembersPage() {
 
                             return (
                                 <div key={member.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #f3f4f6' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                                            {(member.avatar || member.username[0] || '?').toUpperCase()}
-                                        </div>
+                                    
+                                    <div 
+                                        onClick={() => navigate(`/friend/${member.id}`)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                                    >
+                                        {/* Вызываем наш новый компонент */}
+                                        <UserAvatar 
+                                            avatarStr={member.avatar} 
+                                            username={member.username} 
+                                        />
                                         <div>
                                             <div style={{ fontWeight: 600, fontSize: '15px', color: '#1f2937' }}>
                                                 {member.username} {isMe && <span style={{ color: '#9ca3af', fontWeight: 'normal' }}> (Вы)</span>}

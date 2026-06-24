@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getUsersByIds, getOtherTasks, addContact, removeContact, fetchContacts } from '../lib/api';
 import type { UserAnswer } from '../lib/api';
 import { useUser } from '../hooks/useUser';
+import { UserAvatar } from '../components/UserAvatar';
 
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const DAYS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']; 
@@ -172,12 +173,13 @@ export function FriendProfilePage() {
                 
                 {/* Карточка профиля */}
                 <div style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px', textAlign: 'center' }}>
-                    <div style={{ 
-                        width: '80px', height: '80px', borderRadius: '50%', background: '#3b82f6', color: 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold',
-                        margin: '0 auto 16px auto'
-                    }}>
-                        {(friend.avatar || friend.username[0] || '?').toUpperCase()}
+                    <div style={{ margin: '0 auto 16px auto', display: 'flex', justifyContent: 'center' }}>
+                        <UserAvatar 
+                            avatarStr={friend.avatar} 
+                            username={friend.username} 
+                            size={80} 
+                            fontSize={32} 
+                        />
                     </div>
                     <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', color: '#1f2937' }}>{friend.username}</h2>
                     <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#6b7280' }}>@{friend.login}</p>

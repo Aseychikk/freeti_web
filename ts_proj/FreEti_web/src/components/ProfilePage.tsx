@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useUpdateUser } from '../hooks/useUser';
 import { useAuth } from '../hooks/useAuth';
+import { UserAvatar } from '../components/UserAvatar';
 
 export function ProfilePage() {
     const navigate = useNavigate();
@@ -73,14 +74,14 @@ export function ProfilePage() {
 
                 {/* Аватар */}
                 <div style={styles.avatarSection}>
-                    <div
-                        style={{
-                            ...styles.avatar,
-                            transform: 'rotate(90deg)',
-                            background: '#3b82f6',
-                        }}
-                    >
-                        {avatar.slice(0, 4) || '?'}
+                    {/* Вызываем наш новый компонент */}
+                    <div style={{ marginBottom: '12px' }}>
+                        <UserAvatar 
+                            avatarStr={avatar} 
+                            username={user?.username} 
+                            size={80} 
+                            fontSize={32} 
+                        />
                     </div>
                     <button
                         onClick={() => setIsEditingAvatar(!isEditingAvatar)}
@@ -89,7 +90,6 @@ export function ProfilePage() {
                         Изменить аватар
                     </button>
                 </div>
-
                 {/* Редактирование аватара */}
                 {isEditingAvatar && (
                     <div style={styles.editAvatarSection}>
@@ -97,8 +97,7 @@ export function ProfilePage() {
                         <input
                             type="text"
                             value={avatar}
-                            onChange={(e) => setAvatar(e.target.value.slice(0, 4))}
-                            maxLength={4}
+                            onChange={(e) => setAvatar(Array.from(String(e.target.value)).slice(0, 4).join(''))}
                             autoFocus
                             style={styles.input}
                             placeholder="Например: :)"
