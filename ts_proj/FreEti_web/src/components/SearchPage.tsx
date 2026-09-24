@@ -112,7 +112,7 @@ export function SearchPage() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={searchType === 'username' ? 'Введите имя...' : 'Введите логин (напр. kirill01)'}
+                        placeholder={searchType === 'username' ? 'Введите имя...' : 'Введите логин...'}
                         style={{
                             width: '100%', padding: '12px 16px', border: '1px solid #d1d5db', boxSizing: 'border-box',
                             borderRadius: '8px', fontSize: '15px', outline: 'none'
